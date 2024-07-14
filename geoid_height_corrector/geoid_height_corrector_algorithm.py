@@ -37,6 +37,8 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFeatureSink)
 
+from qgis import processing
+
 
 class GeoidHeightCorrectorAlgorithm(QgsProcessingAlgorithm):
     """
@@ -65,60 +67,139 @@ class GeoidHeightCorrectorAlgorithm(QgsProcessingAlgorithm):
         with some other properties.
         """
 
-        # We add the input vector features source. It can have any kind of
-        # geometry.
         self.addParameter(
             QgsProcessingParameterFeatureSource(
                 self.INPUT,
-                self.tr('Input layer'),
+                self.tr('Input vector layer (with z coordinates, ellipsoid height ETRS89 )'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
 
-        # We add a feature sink in which to store our processed features (this
-        # usually takes the form of a newly created vector layer when the
-        # algorithm is run in QGIS).
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT,
-                self.tr('Output layer')
+                self.tr('Result layer with converted z coordinates to DVR90')
             )
         )
+
 
     def processAlgorithm(self, parameters, context, feedback):
         """
         Here is where the processing itself takes place.
         """
 
-        # Retrieve the feature source and sink. The 'dest_id' variable is used
-        # to uniquely identify the feature sink, and must be included in the
-        # dictionary returned by the processAlgorithm function.
-        source = self.parameterAsSource(parameters, self.INPUT, context)
-        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT,
-                context, source.fields(), source.wkbType(), source.sourceCrs())
+        drape = processing.run("native:setmfromraster", {'INPUT':parameters['INPUT'],'RASTER':'D:/projekter/hoejdekorrektion/dvr90_2023.tif','BAND':1,'NODATA':0,'SCALE':1,'OFFSET':0,'OUTPUT':'TEMPORARY_OUTPUT'})
 
-        # Compute the number of steps to display within the progress bar and
-        # get features from source
+        source = self.parameterAsSource(drape, 'OUTPUT', context)
+        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, source.fields(), source.wkbType(), source.sourceCrs())
+
         total = 100.0 / source.featureCount() if source.featureCount() else 0
         features = source.getFeatures()
+
+        # Åbn rasterlag
+        
+        # Find CRS for rasterlag
+        
+        # Find CRS for inputlag
+        
+        # Hvis de er forskellige, så etabler koordinattransformation og sæt trans til true
+        
+        # Find offsetværdi (evt sæt til 0.0) 
+
+        # For alle features...
+
+            # Hvis trans, saa transformér geometri        
+
+            # Hvis mulipart så gennemløb hver part / Hver node
+            
+                # Sæt z-værdi for node
+
+            # Hvis singlepart så gennemløb hver node
+                
+                # Sæt z-værdi for node
+
+                        
+
+#       
+#       crsSrc = QgsCoordinateReferenceSystem(4326)    # WGS 84
+#       crsDest = QgsCoordinateReferenceSystem(32633)  # WGS 84 / UTM zone 33N
+#       xform = QgsCoordinateTransform(crsSrc, crsDest)
+#       
+#       #create test layers    
+#       uri1 = "linestring?crs=epsg:4326&field=id:integer"
+#       scratchLayer1 = QgsVectorLayer(uri1, "Scratch point layer1",  "memory")
+#       
+#       feat = QgsFeature(scratchLayer1.pendingFields())
+#       feat.setGeometry(QgsGeometry.fromPolyline([QgsPointXY(18, 5),QgsPointXY(18, 6)]))
+#       (res, outFeats) = scratchLayer1.dataProvider().addFeatures([feat])
+#       
+#       uri2 = "linestring?crs=epsg:32633&field=id:integer"
+#       scratchLayer2 = QgsVectorLayer(uri2, "Scratch point layer2",  "memory")
+#       
+#       #CRS transformation
+#       feats = []
+#       for f in scratchLayer1.getFeatures():
+#           g = f.geometry()
+#           g.transform(xform)
+#           f.setGeometry(g)
+#           feats.append(f)
+#       
+#       
+#       scratchLayer2.dataProvider().addFeatures(feats)
+
+
+
+
+
+
+
+
+#        for feature in layer.getFeatures():
+  #            print('Processing feature {0}'.format(feature.id()))
+#            geom = feature.geometry()
+#            for part in geom.parts():
+#                for p in part.vertices():
+#                    print(p)
+
+
+#       layers = QgsProject.instance().mapLayersByName('Draped')
+#           layer = layers[0]
+#           
+#           layer.startEditing()
+#           for f in layer.getFeatures():
+#               geom = f.geometry().constGet()
+#               ls = QgsLineString()
+#               for p in geom:
+#                   pt = QgsPoint(0,0,0)
+#                   pt.setX(p.x())
+#                   pt.setY(p.y())
+#                   pt.setZ(round(p.z(),4))
+#                   ls.addVertex(pt)
+#               newgeom = QgsGeometry.fromPolyline(ls)
+#               layer.changeGeometry(f.id(), newgeom)
+#           
+#           layer.commitChanges()
+
+
+
 
         for current, feature in enumerate(features):
             # Stop the algorithm if cancel button has been clicked
             if feedback.isCanceled():
                 break
 
+
+ 
+ -*
+ *  ½-
+ AddWS>ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ-
+ +
             # Add a feature in the sink
             sink.addFeature(feature, QgsFeatureSink.FastInsert)
 
             # Update the progress bar
             feedback.setProgress(int(current * total))
 
-        # Return the results of the algorithm. In this case our only result is
-        # the feature sink which contains the processed features, but some
-        # algorithms may return multiple feature sinks, calculated numeric
-        # statistics, etc. These should all be included in the returned
-        # dictionary, with keys matching the feature corresponding parameter
-        # or output names.
         return {self.OUTPUT: dest_id}
 
     def name(self):
